@@ -10,11 +10,14 @@ jobs:
     runs-on: self-hosted
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Create Kind Cluster
         run: kind create cluster
+
+      - name: Wait for Kubernetes API
+        run: |
+          kubectl wait --for=condition=Ready nodes --all --timeout=120s
 
       - name: Terraform Init
         working-directory: terraform
