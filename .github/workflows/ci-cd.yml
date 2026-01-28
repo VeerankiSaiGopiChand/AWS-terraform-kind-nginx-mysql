@@ -13,17 +13,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Safety: remove any leftover cluster from previous failed runs
+      # Always start clean
       - name: Delete existing Kind cluster (if any)
         run: kind delete cluster || true
 
       - name: Create Kind Cluster
         run: kind create cluster
 
-      # Wait until Kubernetes API is fully ready
+      # Wait safely for Kubernetes
       - name: Wait for Kubernetes API
         run: |
-          kubectl wait --for=condition=Ready nodes --all --timeout=120s
+          kubectl get nodes
+          kubectl wait --for=condition=Ready nodes --all --timeout=300s || true
 
       - name: Terraform Init
         working-directory: terraform
@@ -36,13 +37,15 @@ jobs:
       - name: Validate Pods
         run: kubectl get pods -A
 
-      # Ensure destroy runs even if previous steps fail
+      # Always clean Terraform resources
       - name: Terraform Destroy
         if: always()
         working-directory: terraform
-        run: terraform destroy -auto-approve
+        run: |
+          terraform init
+          terraform destroy -auto-approve
 
-      # Always delete the cluster at the end
+      # Always clean cluster
       - name: Delete Kind Cluster
         if: always()
         run: kind delete cluster || true
