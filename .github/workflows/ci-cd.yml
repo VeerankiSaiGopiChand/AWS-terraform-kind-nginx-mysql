@@ -10,11 +10,17 @@ jobs:
     runs-on: self-hosted
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Safety: remove any leftover cluster from previous failed runs
+      - name: Delete existing Kind cluster (if any)
+        run: kind delete cluster || true
 
       - name: Create Kind Cluster
         run: kind create cluster
 
+      # Wait until Kubernetes API is fully ready
       - name: Wait for Kubernetes API
         run: |
           kubectl wait --for=condition=Ready nodes --all --timeout=120s
@@ -30,9 +36,13 @@ jobs:
       - name: Validate Pods
         run: kubectl get pods -A
 
+      # Ensure destroy runs even if previous steps fail
       - name: Terraform Destroy
+        if: always()
         working-directory: terraform
         run: terraform destroy -auto-approve
 
+      # Always delete the cluster at the end
       - name: Delete Kind Cluster
-        run: kind delete cluster
+        if: always()
+        run: kind delete cluster || true
