@@ -1,4 +1,6 @@
 resource "kubernetes_deployment" "nginx" {
+  wait_for_rollout = false
+
   metadata {
     name = "nginx"
     labels = {

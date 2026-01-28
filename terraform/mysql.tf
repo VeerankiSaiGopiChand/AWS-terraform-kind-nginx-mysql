@@ -1,4 +1,6 @@
 resource "kubernetes_deployment" "mysql" {
+  wait_for_rollout = false
+
   metadata {
     name = "mysql"
     labels = {
@@ -40,3 +42,5 @@ resource "kubernetes_deployment" "mysql" {
     }
   }
 }
+
+
