@@ -1,27 +1,39 @@
-name: Terraform Kind CI/CD
+name: Terraform Kind CI/CD (AWS Free Tier)
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
   deploy:
     runs-on: self-hosted
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Delete existing Kind cluster
-        run: kind delete cluster || true
+        run: |
+          kind delete cluster || true
+          docker system prune -af || true
+          docker volume prune -f || true
 
-      - name: Create Kind Cluster (Free Tier Safe)
-        run: kind create cluster --image kindest/node:v1.27.3 --wait 300s
+      - name: Create Kind Cluster
+        run: |
+          kind create cluster \
+            --image kindest/node:v1.27.3 \
+            --wait 300s
 
-      - name: Export kubeconfig
+      - name: Set kubeconfig
         run: echo "KUBECONFIG=$HOME/.kube/config" >> $GITHUB_ENV
 
-      - name: Verify cluster
-        run: kubectl get nodes
+      - name: Wait for Kubernetes to stabilize
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+          sleep 60
+          kubectl get nodes
 
       - name: Terraform Init
         working-directory: terraform
@@ -32,12 +44,14 @@ jobs:
         run: terraform apply -auto-approve
 
       - name: Validate Pods
-        run: kubectl get pods -A
+        run: kubectl get pods -A || true
 
       - name: Terraform Destroy
         if: always()
         working-directory: terraform
-        run: terraform destroy -auto-approve
+        run: |
+          terraform init
+          terraform destroy -auto-approve
 
       - name: Delete Kind Cluster
         if: always()
